@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Crosswire — a guessing duel</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders:wght@600;700;800&family=IBM+Plex+Mono:wght@400;500;600&family=Source+Serif+4:opsz@8..60&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink: #1b1a17;
+    --ink-panel: #252320;
+    --ink-panel-2: #2c2924;
+    --paper: #f2ede4;
+    --paper-dim: #a89f8f;
+    --hairline: #3a362f;
+    --a-color: #e3b23c;
+    --a-color-dim: #6b5a2a;
+    --b-color: #5fa3a0;
+    --b-color-dim: #33504e;
+    --danger: #c1543c;
+  }
+
+  *{ box-sizing: border-box; }
+
+  html, body{
+    margin:0;
+    padding:0;
+    min-height:100vh;
+    background: var(--ink);
+    color: var(--paper);
+    font-family: 'Source Serif 4', Georgia, serif;
+  }
+
+  body{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 32px 16px;
+  }
+
+  /* subtle vignette / lamp glow, one deliberate atmospheric touch */
+  body::before{
+    content:"";
+    position: fixed;
+    inset: 0;
+    background: radial-gradient(ellipse 900px 600px at 50% 0%, rgba(227,178,60,0.10), transparent 60%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .stage{
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 640px;
+  }
+
+  .card{
+    background: var(--ink-panel);
+    border: 1px solid var(--hairline);
+    border-radius: 4px;
+    padding: 40px 36px;
+  }
+
+  h1.title{
+    font-family: 'Big Shoulders', sans-serif;
+    font-weight: 800;
+    font-size: clamp(40px, 9vw, 64px);
+    letter-spacing: 0.5px;
+    line-height: 0.95;
+    margin: 0 0 4px 0;
+    color: var(--paper);
+  }
+
+  .tagline{
+    font-size: 17px;
+    color: var(--paper-dim);
+    margin: 0 0 32px 0;
+    max-width: 46ch;
+    line-height: 1.5;
+  }
+
+  .section-label{
+    font-family: 'Big Shoulders', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: 0.3px;
+    color: var(--paper-dim);
+    margin: 0 0 12px 0;
+  }
+
+  .mode-row{
+    display:flex;
+    gap: 12px;
+    margin-bottom: 28px;
+    flex-wrap: wrap;
+  }
+
+  .mode-btn{
+    flex: 1;
+    min-width: 140px;
+    background: var(--ink-panel-2);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    color: var(--paper);
+    font-family: 'Source Serif 4', serif;
+    font-size: 15px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background 0.15s ease;
+  }
+
+  .mode-btn strong{
+    display:block;
+    font-family: 'Big Shoulders', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    margin-bottom: 3px;
+  }
+
+  .mode-btn:hover{ border-color: var(--paper-dim); }
+
+  .mode-btn.selected{
+    border-color: var(--a-color);
+    background: rgba(227,178,60,0.08);
+  }
+
+  .field{
+    margin-bottom: 20px;
+  }
+
+  label{
+    display:block;
+    font-size: 14px;
+    color: var(--paper-dim);
+    margin-bottom: 8px;
+  }
+
+  input[type="text"], input[type="password"]{
+    width: 100%;
+    background: var(--ink);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    color: var(--paper);
+    font-family: 'Source Serif 4', serif;
+    font-size: 17px;
+    padding: 12px 14px;
+  }
+
+  input[type="text"]:focus, input[type="password"]:focus{
+    outline: 2px solid var(--a-color);
+    outline-offset: 1px;
+    border-color: var(--a-color);
+  }
+
+  .btn{
+    font-family: 'Big Shoulders', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    letter-spacing: 0.3px;
+    border: none;
+    border-radius: 3px;
+    padding: 14px 24px;
+    cursor: pointer;
+    transition: transform 0.08s ease, filter 0.15s ease;
+    width: 100%;
+  }
+
+  .btn:active{ transform: scale(0.98); }
+
+  .btn-primary{
+    background: var(--a-color);
+    color: #1b1a17;
+  }
+  .btn-primary:hover{ filter: brightness(1.08); }
+
+  .btn-secondary{
+    background: transparent;
+    border: 1px solid var(--hairline);
+    color: var(--paper);
+  }
+  .btn-secondary:hover{ border-color: var(--paper-dim); }
+
+  .btn:focus-visible{
+    outline: 2px solid var(--paper);
+    outline-offset: 2px;
+  }
+
+  .hint{
+    font-size: 13px;
+    color: var(--paper-dim);
+    margin-top: 10px;
+    line-height: 1.5;
+  }
+
+  .hidden{ display:none !important; }
+
+  /* --- interstitial pass-device screens --- */
+  .interstitial{
+    text-align:center;
+    padding: 60px 36px;
+  }
+
+  .interstitial .icon{
+    font-size: 40px;
+    margin-bottom: 18px;
+    opacity: 0.8;
+  }
+
+  .interstitial h2{
+    font-family: 'Big Shoulders', sans-serif;
+    font-weight: 800;
+    font-size: 30px;
+    margin: 0 0 10px 0;
+  }
+
+  .interstitial p{
+    color: var(--paper-dim);
+    font-size: 16px;
+    margin: 0 0 30px 0;
+  }
+
+  /* --- duel screen --- */
+  .duel-header{
+    display:flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 22px;
+  }
+
+  .duel-header h1{
+    font-family: 'Big Shoulders', sans-serif;
+    font-weight: 800;
+    font-size: 28px;
+    margin: 0;
+  }
+
+  .restart-link{
+    background:none;
+    border:none;
+    color: var(--paper-dim);
+    font-family: 'Source Serif 4', serif;
+    font-size: 14px;
+    text-decoration: underline;
+    cursor: pointer;
+    padding: 0;
+  }
+  .restart-link:hover{ color: var(--paper); }
+
+  .panels{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+
+  @media (max-width: 520px){
+    .panels{ grid-template-columns: 1fr; }
+    .card{ padding: 28px 20px; }
+  }
+
+  .panel{
+    background: var(--ink-panel-2);
+    border-top: 3px solid var(--hairline);
+    border-radius: 3px;
+    padding: 20px 18px;
+  }
+
+  .panel.side-a{ border-top-color: var(--a-color); }
+  .panel.side-b{ border-top-color: var(--b-color); }
+
+  .panel .name{
+    font-family: 'Big Shoulders', sans-serif;
+    font-weight: 700;
+    font-size: 19px;
+    margin: 0 0 2px 0;
+    word-break: break-word;
+  }
+
+  .panel .role{
+    font-size: 12.5px;
+    color: var(--paper-dim);
+    margin: 0 0 18px 0;
+  }
+
+  .counter-row{
+    display:flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+
+  .counter-label{
+    font-size: 13px;
+    color: var(--paper-dim);
+  }
+
+  .counter-value{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 30px;
+    font-weight: 600;
+  }
+
+  .side-a .counter-value{ color: var(--a-color); }
+  .side-b .counter-value{ color: var(--b-color); }
+
+  .ask-btn{
+    width: 100%;
+    background: var(--ink);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    color: var(--paper);
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 13px;
+    padding: 10px;
+    cursor: pointer;
+    margin-bottom: 18px;
+    transition: border-color 0.15s ease;
+  }
+  .ask-btn:hover{ border-color: var(--paper-dim); }
+  .side-a .ask-btn:hover{ border-color: var(--a-color); }
+  .side-b .ask-btn:hover{ border-color: var(--b-color); }
+
+  .guess-label{
+    font-size: 12.5px;
+    color: var(--paper-dim);
+    margin-bottom: 6px;
+    display:block;
+  }
+
+  .guess-row{
+    display:flex;
+    gap: 8px;
+  }
+
+  .guess-row input{
+    flex: 1;
+    background: var(--ink);
+    border: 1px solid var(--hairline);
+    border-radius: 3px;
+    color: var(--paper);
+    font-size: 15px;
+    padding: 10px 12px;
+    min-width: 0;
+  }
+
+  .guess-row input:focus{
+    outline: 2px solid var(--paper-dim);
+    outline-offset: 1px;
+  }
+
+  .guess-row button{
+    font-family: 'Big Shoulders', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    border: none;
+    border-radius: 3px;
+    padding: 0 16px;
+    cursor: pointer;
+    color: #1b1a17;
+  }
+
+  .side-a .guess-row button{ background: var(--a-color); }
+  .side-b .guess-row button{ background: var(--b-color); }
+
+  .panel.shake{
+    animation: shake 0.4s ease;
+  }
+  @keyframes shake{
+    0%, 100%{ transform: translateX(0); }
+    20%{ transform: translateX(-6px); }
+    40%{ transform: translateX(6px); }
+    60%{ transform: translateX(-4px); }
+    80%{ transform: translateX(4px); }
+  }
+
+  .miss-note{
+    font-size: 12px;
+    color: var(--danger);
+    margin-top: 8px;
+    min-height: 16px;
+  }
+
+  /* --- result screen --- */
+  .result{
+    text-align:center;
+    padding: 50px 36px;
+  }
+
+  .result .winner-tag{
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    color: var(--paper-dim);
+    margin-bottom: 10px;
+  }
+
+  .result h2{
+    font-family: 'Big Shoulders', sans-serif;
+    font-weight: 800;
+    font-size: clamp(32px, 7vw, 46px);
+    margin: 0 0 6px 0;
+  }
+
+  .result .winner-name.a{ color: var(--a-color); }
+  .result .winner-name.b{ color: var(--b-color); }
+
+  .result .final-count{
+    font-size: 17px;
+    color: var(--paper-dim);
+    margin: 0 0 32px 0;
+  }
+
+  .result .final-count .num{
+    font-family: 'IBM Plex Mono', monospace;
+    color: var(--paper);
+  }
+
+  .tally{
+    display:flex;
+    justify-content:center;
+    gap: 28px;
+    margin-bottom: 34px;
+  }
+
+  .tally-item .n{
+    font-family: 'IBM Plex Mono', monospace;
+    font-size: 22px;
+    display:block;
+  }
+  .tally-item .who{
+    font-size: 12.5px;
+    color: var(--paper-dim);
+  }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="card">
+
+    <!-- ============ SETUP ============ -->
+    <div id="screen-setup">
+      <h1 class="title">CROSSWIRE</h1>
+      <p class="tagline">Two secrets go into the room. Whoever asks the sharpest questions walks out having cracked the other's first.</p>
+
+      <div class="section-label">What are you hiding?</div>
+      <div class="mode-row">
+        <button class="mode-btn selected" id="mode-numbers" onclick="selectMode('numbers')">
+          <strong>Numbers</strong>
+          Any number from 1–100
+        </button>
+        <button class="mode-btn" id="mode-words" onclick="selectMode('words')">
+          <strong>Words</strong>
+          A car, a brand, anything
+        </button>
+      </div>
+
+      <div class="field">
+        <label for="input-name-a">First interrogator's name</label>
+        <input type="text" id="input-name-a" placeholder="e.g. Priya" maxlength="18">
+      </div>
+      <div class="field">
+        <label for="input-name-b">Second interrogator's name</label>
+        <input type="text" id="input-name-b" placeholder="e.g. Sam" maxlength="18">
+      </div>
+
+      <button class="btn btn-primary" onclick="beginSecretEntry()">Begin</button>
+      <p class="hint">One device, passed back and forth. Each of you locks in a secret the other can't see, then you take turns asking questions out loud — this just keeps score.</p>
+    </div>
+
+    <!-- ============ PASS-TO SCREEN ============ -->
+    <div id="screen-pass" class="hidden">
+      <div class="interstitial">
+        <div class="icon">◆</div>
+        <h2 id="pass-heading">Hand the device to Priya</h2>
+        <p id="pass-sub">They'll lock in a secret the other can't see.</p>
+        <button class="btn btn-primary" id="pass-continue-btn" onclick="showSecretEntry()">I'm ready</button>
+      </div>
+    </div>
+
+    <!-- ============ SECRET ENTRY ============ -->
+    <div id="screen-secret" class="hidden">
+      <div class="section-label" id="secret-label">Priya, lock in your secret</div>
+      <div class="field">
+        <label for="input-secret" id="secret-input-label">Your number (1–100)</label>
+        <input type="password" id="input-secret" autocomplete="off">
+      </div>
+      <p class="hint" id="secret-hint">Only you should be looking at the screen right now.</p>
+      <button class="btn btn-primary" onclick="lockInSecret()" style="margin-top:16px;">Lock it in</button>
+    </div>
+
+    <!-- ============ HANDOFF TO DUEL ============ -->
+    <div id="screen-handoff" class="hidden">
+      <div class="interstitial">
+        <div class="icon">◆</div>
+        <h2>Both secrets are locked</h2>
+        <p>Set the device down where you can both see it. Take turns asking each other yes-or-no questions — tap the counter each time you ask one.</p>
+        <button class="btn btn-primary" onclick="startDuel()">Start the duel</button>
+      </div>
+    </div>
+
+    <!-- ============ DUEL ============ -->
+    <div id="screen-duel" class="hidden">
+      <div class="duel-header">
+        <h1>CROSSWIRE</h1>
+        <button class="restart-link" onclick="resetGame()">restart</button>
+      </div>
+
+      <div class="panels">
+        <div class="panel side-a" id="panel-a">
+          <p class="name" id="duel-name-a">Priya</p>
+          <p class="role">is hunting for the other secret</p>
+
+          <div class="counter-row">
+            <span class="counter-label">Questions asked</span>
+            <span class="counter-value" id="count-a">0</span>
+          </div>
+          <button class="ask-btn" onclick="incrementCount('a')">+ I just asked a question</button>
+
+          <span class="guess-label">Guess their secret</span>
+          <div class="guess-row">
+            <input type="text" id="guess-a" placeholder="Type a guess" onkeydown="if(event.key==='Enter') submitGuess('a')">
+            <button onclick="submitGuess('a')">Guess</button>
+          </div>
+          <p class="miss-note" id="miss-a"></p>
+        </div>
+
+        <div class="panel side-b" id="panel-b">
+          <p class="name" id="duel-name-b">Sam</p>
+          <p class="role">is hunting for the other secret</p>
+
+          <div class="counter-row">
+            <span class="counter-label">Questions asked</span>
+            <span class="counter-value" id="count-b">0</span>
+          </div>
+          <button class="ask-btn" onclick="incrementCount('b')">+ I just asked a question</button>
+
+          <span class="guess-label">Guess their secret</span>
+          <div class="guess-row">
+            <input type="text" id="guess-b" placeholder="Type a guess" onkeydown="if(event.key==='Enter') submitGuess('b')">
+            <button onclick="submitGuess('b')">Guess</button>
+          </div>
+          <p class="miss-note" id="miss-b"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ RESULT ============ -->
+    <div id="screen-result" class="hidden">
+      <div class="result">
+        <p class="winner-tag">CRACKED IT</p>
+        <h2 id="winner-name" class="winner-name a">Priya</h2>
+        <p class="final-count" id="winner-line">wins in <span class="num">6</span> questions</p>
+
+        <div class="tally">
+          <div class="tally-item">
+            <span class="n" id="tally-a">6</span>
+            <span class="who" id="tally-a-name">Priya</span>
+          </div>
+          <div class="tally-item">
+            <span class="n" id="tally-b">8</span>
+            <span class="who" id="tally-b-name">Sam</span>
+          </div>
+        </div>
+
+        <button class="btn btn-primary" onclick="resetGame()">Play again</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const state = {
+    mode: 'numbers',
+    nameA: 'Priya',
+    nameB: 'Sam',
+    secretA: '',
+    secretB: '',
+    countA: 0,
+    countB: 0,
+    enteringFor: 'a' // which player is currently locking in a secret
+  };
+
+  function show(id){
+    document.querySelectorAll('[id^="screen-"]').forEach(el => el.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+  }
+
+  function selectMode(mode){
+    state.mode = mode;
+    document.getElementById('mode-numbers').classList.toggle('selected', mode === 'numbers');
+    document.getElementById('mode-words').classList.toggle('selected', mode === 'words');
+  }
+
+  function beginSecretEntry(){
+    const a = document.getElementById('input-name-a').value.trim();
+    const b = document.getElementById('input-name-b').value.trim();
+    state.nameA = a || 'Player A';
+    state.nameB = b || 'Player B';
+    state.enteringFor = 'a';
+    showPassScreen();
+  }
+
+  function showPassScreen(){
+    const name = state.enteringFor === 'a' ? state.nameA : state.nameB;
+    document.getElementById('pass-heading').textContent = 'Hand the device to ' + name;
+    document.getElementById('pass-sub').textContent = "They'll lock in a secret the other can't see.";
+    show('screen-pass');
+  }
+
+  function showSecretEntry(){
+    const name = state.enteringFor === 'a' ? state.nameA : state.nameB;
+    document.getElementById('secret-label').textContent = name + ', lock in your secret';
+    document.getElementById('secret-input-label').textContent =
+      state.mode === 'numbers' ? 'Your number (1–100)' : 'Your word (a car, a brand, anything)';
+    document.getElementById('input-secret').value = '';
+    document.getElementById('input-secret').type = 'password';
+    show('screen-secret');
+  }
+
+  function lockInSecret(){
+    const val = document.getElementById('input-secret').value.trim();
+    if (!val){ return; }
+
+    if (state.enteringFor === 'a'){
+      state.secretA = val;
+      state.enteringFor = 'b';
+      showPassScreen();
+    } else {
+      state.secretB = val;
+      show('screen-handoff');
+    }
+  }
+
+  function startDuel(){
+    document.getElementById('duel-name-a').textContent = state.nameA;
+    document.getElementById('duel-name-b').textContent = state.nameB;
+    state.countA = 0;
+    state.countB = 0;
+    document.getElementById('count-a').textContent = '0';
+    document.getElementById('count-b').textContent = '0';
+    document.getElementById('miss-a').textContent = '';
+    document.getElementById('miss-b').textContent = '';
+    show('screen-duel');
+  }
+
+  function incrementCount(side){
+    if (side === 'a'){
+      state.countA++;
+      document.getElementById('count-a').textContent = state.countA;
+    } else {
+      state.countB++;
+      document.getElementById('count-b').textContent = state.countB;
+    }
+  }
+
+  function normalize(s){
+    return s.trim().toLowerCase();
+  }
+
+  function submitGuess(side){
+    const guessInput = document.getElementById('guess-' + side);
+    const guess = guessInput.value;
+    if (!guess.trim()) return;
+
+    // side 'a' is guessing side b's secret, and vice versa
+    const target = side === 'a' ? state.secretB : state.secretA;
+    const correct = normalize(guess) === normalize(target);
+
+    if (correct){
+      endGame(side);
+    } else {
+      const panel = document.getElementById('panel-' + side);
+      panel.classList.remove('shake');
+      // restart animation
+      void panel.offsetWidth;
+      panel.classList.add('shake');
+      document.getElementById('miss-' + side).textContent = 'Not it. Keep asking.';
+      guessInput.value = '';
+      guessInput.focus();
+    }
+  }
+
+  function endGame(winnerSide){
+    const winnerName = winnerSide === 'a' ? state.nameA : state.nameB;
+    const loserName = winnerSide === 'a' ? state.nameB : state.nameA;
+    const winnerCount = winnerSide === 'a' ? state.countA : state.countB;
+    const loserCount = winnerSide === 'a' ? state.countB : state.countA;
+
+    const nameEl = document.getElementById('winner-name');
+    nameEl.textContent = winnerName;
+    nameEl.classList.toggle('a', winnerSide === 'a');
+    nameEl.classList.toggle('b', winnerSide === 'b');
+
+    document.getElementById('winner-line').innerHTML =
+      'wins in <span class="num">' + winnerCount + '</span> question' + (winnerCount === 1 ? '' : 's');
+
+    document.getElementById('tally-a').textContent = winnerSide === 'a' ? winnerCount : loserCount;
+    document.getElementById('tally-a-name').textContent = state.nameA;
+    document.getElementById('tally-b').textContent = winnerSide === 'a' ? loserCount : winnerCount;
+    document.getElementById('tally-b-name').textContent = state.nameB;
+
+    show('screen-result');
+  }
+
+  function resetGame(){
+    state.secretA = '';
+    state.secretB = '';
+    state.countA = 0;
+    state.countB = 0;
+    state.enteringFor = 'a';
+    document.getElementById('input-name-a').value = state.nameA === 'Priya' ? '' : state.nameA;
+    document.getElementById('input-name-b').value = state.nameB === 'Sam' ? '' : state.nameB;
+    show('screen-setup');
+  }
+</script>
+
+</body>
+</html>
